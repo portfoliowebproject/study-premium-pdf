@@ -14,8 +14,33 @@ import {
   Menu,
 } from "lucide-react";
 
+// --- TYPESCRIPT DEFINITIONS ---
+declare global {
+  interface Window {
+    RazorpayBS: any;
+    Razorpay: any;
+  }
+}
+
+interface Product {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  originalPrice: number;
+  rating: number;
+  reviews: number;
+  downloadLink: string;
+  features: string[];
+}
+
+interface Customer {
+  name: string;
+  email: string;
+}
+
 // --- PRODUCT CONFIGURATION ---
-const PRODUCT = {
+const PRODUCT: Product = {
   id: "PDF-001",
   title: "Premium Study PDF",
   description:
@@ -36,13 +61,19 @@ const PRODUCT = {
 
 // --- COMPONENTS ---
 
-const Button = ({
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "primary" | "secondary" | "razorpay" | "outline";
+  children: React.ReactNode;
+}
+
+const Button: React.FC<ButtonProps> = ({
   children,
   variant = "primary",
   className = "",
   onClick,
   type = "button",
   disabled = false,
+  ...props
 }) => {
   const baseStyle =
     "px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
@@ -62,13 +93,14 @@ const Button = ({
       onClick={onClick}
       disabled={disabled}
       className={`${baseStyle} ${variants[variant]} ${className}`}
+      {...props}
     >
       {children}
     </button>
   );
 };
 
-const Badge = ({ children }) => (
+const Badge = ({ children }: { children: React.ReactNode }) => (
   <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full">
     {children}
   </span>
@@ -77,10 +109,10 @@ const Badge = ({ children }) => (
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
-  const [view, setView] = useState("home"); // 'home', 'success'
+  const [view, setView] = useState<"home" | "success">("home");
   const [showCheckout, setShowCheckout] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [customer, setCustomer] = useState({ name: "", email: "" });
+  const [customer, setCustomer] = useState<Customer>({ name: "", email: "" });
 
   // --- HANDLERS ---
 
@@ -89,7 +121,7 @@ export default function App() {
   };
 
   // Helper to load Razorpay Script dynamically
-  const loadScript = (src) => {
+  const loadScript = (src: string): Promise<boolean> => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
       script.src = src;
@@ -103,7 +135,7 @@ export default function App() {
     });
   };
 
-  const handlePayment = async (e) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
 
@@ -121,18 +153,15 @@ export default function App() {
     }
 
     // 2. Setup Options
-    // NOTE: key_secret is NOT used on frontend for security. It is used on backend for verification.
     const options = {
       key: "rzp_test_RvTVPXYu2MB10d", // User provided Key ID
       amount: PRODUCT.price * 100, // Amount is in paise (499 * 100 = 49900)
       currency: "INR",
       name: "StudyPremium",
       description: PRODUCT.title,
-      image: "", // You can add a logo URL here
-      handler: function (response) {
+      image: "https://cdn-icons-png.flaticon.com/512/337/337946.png", // Added a generic PDF logo
+      handler: function (response: any) {
         // 3. Handle Success
-        // In a real app, you would send response.razorpay_payment_id to your backend to verify
-        // using the key_secret. Here we simulate success.
         setIsProcessing(false);
         setShowCheckout(false);
         setView("success");
@@ -150,12 +179,17 @@ export default function App() {
       theme: {
         color: "#2563eb", // Brand Blue
       },
+      modal: {
+        ondismiss: function() {
+            setIsProcessing(false);
+        }
+      }
     };
 
     // 4. Open Razorpay
     try {
       const paymentObject = new window.Razorpay(options);
-      paymentObject.on("payment.failed", function (response) {
+      paymentObject.on("payment.failed", function (response: any) {
         alert("Payment Failed: " + response.error.description);
         setIsProcessing(false);
       });
